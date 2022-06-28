@@ -62,14 +62,16 @@ def _get(url, headers, timeout, details):
 ###下载ts文件
 def download(url, name, encoded = False, cryptor = None):
     global __mainAlive
-    if __mainAlive == False: return
 
-    r = _get(url = url, headers = headers, timeout = 15, details = name)
-
-    while r.status_code != 200:
+    while True:
         if __mainAlive == False: return
-        print(f"Request error, status code={r.status_code}, retrying... ({name})")
         r = _get(url = url, headers = headers, timeout = 15, details = name)
+        if r.status_code == 200 and r.headers.get("content-type").lower() != "text/html":
+            break
+        else:
+            print(f"Request error, status code={r.status_code},", 
+                  f"content-type={r.headers.get('content-type')},",
+                  f"retrying... ({name})")
 
     if not r:
         print(f"Unknown error, ({name})")
