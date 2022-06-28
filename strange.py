@@ -98,7 +98,7 @@ downloadpath = "Downloads/"
 #https://v7.dious.cc/20210326/oGO9MXsC/index.m3u8
 
 mergedone = False
-def startmerge(total):
+def startmerge(total, filename):
     global __mainAlive, mergedone, now, downloadpath
     kill = False
     if total == -1:
@@ -117,10 +117,10 @@ def startmerge(total):
             if kill: return
             time.sleep(0.5)
             continue
-        with open(os.path.join(downloadpath, "new.mp4"), "ab+") as dst:
+        with open(os.path.join(downloadpath, f"{filename}.mp4"), "ab+") as dst:
             dst.write(res)
         now += 1
-        with open(os.path.join(downloadpath, "new.txt"), "w") as f:
+        with open(os.path.join(downloadpath, "downloading.inf"), "w") as f:
             f.write(f"{now}")
     if kill:
         total = now
@@ -137,7 +137,7 @@ def startmerge(total):
 MAXTHREAD = 30
 cryptor = None
 
-def main(url):
+def main(url, filename="new"):
     global headers, __mainAlive, total, count, downloadpath, now, cryptor, mergedone
     __mainAlive = True
     res = _get(url = url, headers = headers, timeout = 15, details = "main")
@@ -178,17 +178,17 @@ def main(url):
     with open(os.path.join(downloadpath, "url.txt"), 'w') as f:
         f.write(url)
 
-    if not os.path.exists(os.path.join(downloadpath, "new.txt")): now = 0
+    if not os.path.exists(os.path.join(downloadpath, "downloading.inf")): now = 0
     else:
         try:
-            with open(os.path.join(downloadpath, "new.txt"), "r") as f:
+            with open(os.path.join(downloadpath, "downloading.inf"), "r") as f:
                 now = int(f.read())
         except: now = 0
     if now == 0:
-        with open(os.path.join(downloadpath, "new.mp4"), "wb") as dst:
+        with open(os.path.join(downloadpath, f"{filename}.mp4"), "wb") as dst:
             dst.write(b'')
 
-    threading.Thread(target=startmerge, args=(total,)).start()
+    threading.Thread(target=startmerge, args=(total, filename)).start()
 
     encrypted = False
     for line in ts_list:
@@ -233,15 +233,15 @@ def setMainDead():
 def setMainAlive():
     __mainAlive = True
 
-def MainDownload(url):
-    def Main(url):
+def MainDownload(url, filename):
+    def Main(url, filename):
         try:
-            main(url=url)
+            main(url=url, filename=filename)
         except Exception as e:
             print("main error", e)
 
     try:
-        threading.Thread(target=Main, args=(url,)).start()
+        threading.Thread(target=Main, args=(url, filename)).start()
         while(True):
             time.sleep(1)
             print(f"active_count: {threading.active_count()}", end = '\r')
@@ -267,18 +267,19 @@ if __name__ == "__main__":
         url = args.url
     else:
         url = input("input url:") #https://vod2.bdzybf2.com/20201023/uXcl3glH/1000kb/hls/index.m3u8
+    video_name = args.video_name
 
     if url[:5] == "merge":
         downloadpath = input("input downloadpath:")
-        if not os.path.exists(os.path.join(downloadpath, "new.txt")): now = 0
+        if not os.path.exists(os.path.join(downloadpath, f"{video_name}.txt")): now = 0
         else:
             try:
-                with open(os.path.join(downloadpath, "new.txt"), "r") as f:
+                with open(os.path.join(downloadpath, f"{video_name}.txt"), "r") as f:
                     now = int(f.read())
             except: now = 0
         if now == 0:
-            with open(os.path.join(downloadpath, "new.mp4"), "wb") as dst:
+            with open(os.path.join(downloadpath, f"{video_name}.mp4"), "wb") as dst:
                 dst.write(b'')
-        startmerge(-1)
+        startmerge(-1, f"{video_name}")
     else:
-        MainDownload(url)
+        MainDownload(url, f"{video_name}")
