@@ -5,6 +5,7 @@ import os
 import random
 import hashlib
 from Crypto.Cipher import AES
+from _argparse import ArgParser
 netSemaphore = threading.BoundedSemaphore(20)
 # write_lock = threading.Lock()
 
@@ -20,7 +21,7 @@ def add_to_16(value):
     return value
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.41 Safari/537.36 Edg/101.0.1210.32',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.53 Safari/537.36 Edg/103.0.1264.37'
 }
 mainAlive = False
 
@@ -32,7 +33,11 @@ def _get(url, headers, timeout, details):
         rt += 1
         acquired = False
         try:
-            while not acquired: acquired = netSemaphore.acquire()
+            while not acquired:
+                if mainAlive == False:
+                    print("Main not alive.")
+                    return
+                acquired = netSemaphore.acquire()
             res = requests.get(url = url, headers = headers, timeout = timeout)
         except (KeyboardInterrupt, EOFError):
             if acquired: netSemaphore.release()
@@ -124,6 +129,7 @@ def startmerge(total):
     mergedone = True
 
 MAXTHREAD = 30
+cryptor = None
 
 def main():
     global url, headers, mainAlive, total, count, downloadpath, now, cryptor, mergedone
@@ -144,6 +150,7 @@ def main():
     # exit()
     if ts_list[0] != "#EXTM3U":
         print("not M3U8.")
+        print(ts_list)
         exit()
 
     total = 0
@@ -212,8 +219,15 @@ def main():
 
     print("\n\nWaiting threads end...")
 
+import argparse
+
 if __name__ == "__main__":
-    url = input("input url:") #https://vod2.bdzybf2.com/20201023/uXcl3glH/1000kb/hls/index.m3u8
+    ArgParser()
+    args = ArgParser().parse_args()
+    if args.url:
+        url = args.url
+    else:
+        url = input("input url:") #https://vod2.bdzybf2.com/20201023/uXcl3glH/1000kb/hls/index.m3u8
 
     if url[:5] == "merge":
         downloadpath = input("input downloadpath:")
