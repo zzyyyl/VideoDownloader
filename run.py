@@ -7,4 +7,4 @@ if __name__ == "__main__":
     for x in r:
         if not x:
             continue
-        os.system(f"start cmd /C python strange.py -u=\"{x}\"")
+        os.system(f"start cmd /MIN /C python strange.py -u=\"{x}\"")

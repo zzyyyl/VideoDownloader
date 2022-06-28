@@ -6,7 +6,7 @@ import random
 import hashlib
 from Crypto.Cipher import AES
 from _argparse import ArgParser
-netSemaphore = threading.BoundedSemaphore(20)
+__netSemaphore = threading.BoundedSemaphore(20)
 # write_lock = threading.Lock()
 
 def add_to_16(value):
@@ -23,10 +23,10 @@ def add_to_16(value):
 headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.53 Safari/537.36 Edg/103.0.1264.37'
 }
-mainAlive = False
+__mainAlive = False
 
 def _get(url, headers, timeout, details):
-    global mainAlive
+    global __mainAlive
     random.seed(time.time())
     rt = 0
     while True:
@@ -34,47 +34,47 @@ def _get(url, headers, timeout, details):
         acquired = False
         try:
             while not acquired:
-                if mainAlive == False:
+                if __mainAlive == False:
                     print("Main not alive.")
                     return
-                acquired = netSemaphore.acquire()
+                acquired = __netSemaphore.acquire()
             res = requests.get(url = url, headers = headers, timeout = timeout)
         except (KeyboardInterrupt, EOFError):
-            if acquired: netSemaphore.release()
+            if acquired: __netSemaphore.release()
             raise
         except Exception as e:
-            if acquired: netSemaphore.release()
+            if acquired: __netSemaphore.release()
             print(f"Request error, retrying... ({details}, {rt}), ", e)
             for i in range(0, rt % 5):
-                if mainAlive == False:
+                if __mainAlive == False:
                     print("Main not alive.")
                     return
                 time.sleep(0.1)
             time.sleep(random.random() * 3)
-            if mainAlive == False:
+            if __mainAlive == False:
                 print("Main not alive.")
                 return
         else:
-            if acquired: netSemaphore.release()
+            if acquired: __netSemaphore.release()
             return res
 
 
 ###下载ts文件
 def download(url, name, encoded = False, cryptor = None):
-    global mainAlive
-    if mainAlive == False: return
+    global __mainAlive
+    if __mainAlive == False: return
 
     r = _get(url = url, headers = headers, timeout = 15, details = name)
 
     while r.status_code != 200:
-        if mainAlive == False: return
+        if __mainAlive == False: return
         print(f"Request error, status code={r.status_code}, retrying... ({name})")
         r = _get(url = url, headers = headers, timeout = 15, details = name)
 
     if not r:
         print(f"Unknown error, ({name})")
         return
-    if mainAlive == False: return
+    if __mainAlive == False: return
 
     while True:
         try:
@@ -95,12 +95,11 @@ def download(url, name, encoded = False, cryptor = None):
             return
 
 downloadpath = "Downloads/"
-url = "" #https://vod2.bdzybf2.com/20201023/uXcl3glH/1000kb/hls/index.m3u8
 #https://v7.dious.cc/20210326/oGO9MXsC/index.m3u8
 
 mergedone = False
 def startmerge(total):
-    global mainAlive, mergedone, now, downloadpath
+    global __mainAlive, mergedone, now, downloadpath
     kill = False
     if total == -1:
         total = 10000000
@@ -108,9 +107,9 @@ def startmerge(total):
     while now < total:
         while not os.path.exists(os.path.join(downloadpath, "%07d.ts" % now)):
             if kill: return
-            if not mainAlive: return
+            if not __mainAlive: return
             time.sleep(1)
-        if not mainAlive and not kill: return
+        if not __mainAlive and not kill: return
         try:
             with open(os.path.join(downloadpath, "%07d.ts" % now), "rb") as src:
                 res = src.read()
@@ -127,7 +126,7 @@ def startmerge(total):
         total = now
         print("total:", total)
     now = 0
-    if not mainAlive and not kill: return
+    if not __mainAlive and not kill: return
     while now < total:
         if os.path.exists(os.path.join(downloadpath, "%07d.ts" % now)):
             os.remove(os.path.join(downloadpath, "%07d.ts" % now))
@@ -138,9 +137,9 @@ def startmerge(total):
 MAXTHREAD = 30
 cryptor = None
 
-def main():
-    global url, headers, mainAlive, total, count, downloadpath, now, cryptor, mergedone
-    mainAlive = True
+def main(url):
+    global headers, __mainAlive, total, count, downloadpath, now, cryptor, mergedone
+    __mainAlive = True
     res = _get(url = url, headers = headers, timeout = 15, details = "main")
     if "EXT-X-STREAM-INF" in res.text:  
         file_line = res.text.split("\n")
@@ -228,6 +227,39 @@ def main():
 
 import argparse
 
+def setMainDead():
+    __mainAlive = False
+
+def setMainAlive():
+    __mainAlive = True
+
+def MainDownload(url):
+    def Main(url):
+        try:
+            main(url=url)
+        except Exception as e:
+            print("main error", e)
+
+    try:
+        threading.Thread(target=Main, args=(url,)).start()
+        while(True):
+            time.sleep(1)
+            print(f"active_count: {threading.active_count()}", end = '\r')
+            if threading.active_count() == 1:
+                break
+    # except KeyboardInterrupt:
+    #     print("Main dead.")
+    #     __mainAlive = False
+    except Exception as e:
+        print(e)
+        print("###Main dead.")
+        __mainAlive = False
+        return False
+    else:
+        print("###Main dead.")
+        __mainAlive = False
+        return True
+
 if __name__ == "__main__":
     ArgParser()
     args = ArgParser().parse_args()
@@ -248,29 +280,5 @@ if __name__ == "__main__":
             with open(os.path.join(downloadpath, "new.mp4"), "wb") as dst:
                 dst.write(b'')
         startmerge(-1)
-        exit()
-
-    def Main():
-        try:
-            main()
-        except Exception as e:
-            print("main error", e)
-
-    try:
-        threading.Thread(target=Main).start()
-        while(True):
-            time.sleep(1)
-            print(f"active_count: {threading.active_count()}", end = '\r')
-            if threading.active_count() == 1:
-                break
-    # except KeyboardInterrupt:
-    #     print("Main dead.")
-    #     mainAlive = False
-    except Exception as e:
-        print(e)
-        print("###Main dead.")
-        mainAlive = False
-        raise
     else:
-        print("###Main dead.")
-        mainAlive = False
+        MainDownload(url)
