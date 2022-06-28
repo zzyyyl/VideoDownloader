@@ -62,10 +62,17 @@ def _get(url, headers, timeout, details):
 ###下载ts文件
 def download(url, name, encoded = False, cryptor = None):
     global mainAlive
+    if mainAlive == False: return
 
     r = _get(url = url, headers = headers, timeout = 15, details = name)
+
+    while r.status_code != 200:
+        if mainAlive == False: return
+        print(f"Request error, status code={r.status_code}, retrying... ({name})")
+        r = _get(url = url, headers = headers, timeout = 15, details = name)
+
     if not r:
-        print(f"Unknown error, {name}")
+        print(f"Unknown error, ({name})")
         return
     if mainAlive == False: return
 
@@ -253,6 +260,7 @@ if __name__ == "__main__":
         threading.Thread(target=Main).start()
         while(True):
             time.sleep(1)
+            print(f"active_count: {threading.active_count()}", end = '\r')
             if threading.active_count() == 1:
                 break
     # except KeyboardInterrupt:
