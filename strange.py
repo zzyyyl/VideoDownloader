@@ -144,6 +144,10 @@ class Download:
         self.filename = filename
         self._download_count = 0 # downloading + downloaded
         self._running_count = 0  # downloading
+        self.total = 0
+
+    def downloaded_count(self):
+        return self._download_count - self._running_count
 
     def _download_start(self, url):
         def increasing():
@@ -229,11 +233,11 @@ class Download:
             print(ts_list)
             raise DownloadError(f"{url} is not M3U8")
 
-        total = 0
+        self.total = 0
         for line in ts_list:
             if line and "#" not in line:
-                total += 1
-        print("total:", total)
+                self.total += 1
+        print("total:", self.total)
         # with open("index.m3u8","r") as f:
         #     ts_list = f.readlines()
 
@@ -259,13 +263,13 @@ class Download:
                 dst.write(b'')
 
         mergedone = False
-        def startmerge(folder, total):
+        def startmerge(folder):
             nonlocal now, mergedone
             # kill = False
-            # if total == -1:
-            #     total = 10000000
+            # if self.total == -1:
+            #     self.total = 10000000
             #     kill = True
-            while now < total:
+            while now < self.total:
                 while not os.path.exists(os.path.join(folder, "%07d.ts" % now)):
                     # if kill: return False
                     if self.mainNotAlive(): return False
@@ -285,18 +289,18 @@ class Download:
                 with open(os.path.join(folder, "downloading.inf"), "w") as f:
                     f.write(f"{now}")
             # if kill:
-            #     total = now
-            #     print("total:", total)
+            #     self.total = now
+            #     print("self.total:", self.total)
             mergeing_now = 0
             if self.mainNotAlive(): return False
             # if self.mainNotAlive() and not kill: return False
-            while mergeing_now < total:
+            while mergeing_now < self.total:
                 if os.path.exists(os.path.join(folder, "%07d.ts" % mergeing_now)):
                     os.remove(os.path.join(folder, "%07d.ts" % mergeing_now))
                 mergeing_now += 1
             mergedone = True
 
-        threading.Thread(target=startmerge, args=(folder, total)).start()
+        threading.Thread(target=startmerge, args=(folder,)).start()
 
         encrypted = False
         for line in ts_list:
@@ -326,16 +330,15 @@ class Download:
                     line = requests.compat.urljoin(url, line.replace("\n", ""))
                     if mergedone: return True
                     self._download_start(url=line)
-                    print("_download_count:", self._download_count, "now:", now)
                     threading.Thread(target=self._download, args=(line, os.path.join(folder, "%07d.ts" % self._download_count), encrypted, cryptor)).start()
                 self._download_count = self._download_count + 1
-                print(f"{int((self._download_count - self._running_count) / total * 1000) / 10}%, {self._download_count - self._running_count}/{total}", end = '\r')
+                # print(f"{int((self._download_count - self._running_count) / self.total * 1000) / 10}%, {self._download_count - self._running_count}/{self.total}", end = '\r')
 
         while self._running_count:
-            print(f"{int((total - self._running_count) / total * 1000) / 10}%, {total - self._running_count}/{total}", end = '\r')
+            # print(f"{int((self.total - self._running_count) / self.total * 1000) / 10}%, {self.total - self._running_count}/{self.total}", end = '\r')
             time.sleep(1)
         while not mergedone:
-            print(f"{int((total - self._running_count) / total * 1000) / 10}%, {total - self._running_count}/{total}, merging...", end = '\r')
+            # print(f"{int((self.total - self._running_count) / self.total * 1000) / 10}%, {self.total - self._running_count}/{self.total}, merging...", end = '\r')
             time.sleep(1)
         return True
 
