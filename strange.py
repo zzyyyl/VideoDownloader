@@ -72,6 +72,7 @@ def download(url, name, encoded = False, cryptor = None):
             print(f"Request error, status code={r.status_code},", 
                   f"content-type={r.headers.get('content-type')},",
                   f"retrying... ({name})")
+            time.sleep(0.5)
 
     if not r:
         print(f"Unknown error, ({name})")
@@ -92,7 +93,7 @@ def download(url, name, encoded = False, cryptor = None):
         except Exception as e:
             if os.path.exists(name): os.remove(name)
             print(f"Something error, retrying... ({name}), ", e)
-            time.sleep(0.2)
+            time.sleep(0.5)
         else:
             return
 
@@ -263,7 +264,6 @@ def MainDownload(url, filename):
         return True
 
 if __name__ == "__main__":
-    ArgParser()
     args = ArgParser().parse_args()
     if args.url:
         url = args.url
