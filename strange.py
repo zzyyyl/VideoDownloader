@@ -125,19 +125,19 @@ class Download:
         def __str__(self):
             return f"DownloadError: {self.text}"
 
-    __mainAlive = False
+    _mainAlive = False
 
     def setMainDead(self):
-        self.__mainAlive = False
+        self._mainAlive = False
 
     def setMainAlive(self):
-        self.__mainAlive = True
+        self._mainAlive = True
 
     def mainAlive(self):
-        return self.__mainAlive
+        return self._mainAlive
 
     def mainNotAlive(self):
-        return not self.__mainAlive
+        return not self._mainAlive
 
     def __init__(self, url, filename="new"):
         self.origin_url = url
@@ -145,7 +145,7 @@ class Download:
         self._download_count = 0 # downloading + downloaded
         self._running_count = 0  # downloading
 
-    def download_start(self, url):
+    def _download_start(self, url):
         def increasing():
             _downloadList.append(url)
             self._running_count += 1
@@ -163,8 +163,8 @@ class Download:
         return lock_release(_downloadSemaphore)
 
     ###下载ts文件
-    def download_main(self, url, name, encoded=False, cryptor=None):
-        if not _download_check_started(): download_start(url)
+    def _download_main(self, url, name, encoded=False, cryptor=None):
+        if not self._download_check_started(url): self._download_start(url)
         while True:
             if self.mainNotAlive(): return
             r = _get(url=url, headers=headers, timeout=15, details=name, need_break_func=self.mainNotAlive)
@@ -202,7 +202,7 @@ class Download:
                 return
 
     def _download(self, url, name, encoded=False, cryptor=None):
-        self.download_main(url, name, encoded, cryptor)
+        self._download_main(url, name, encoded, cryptor)
         self._download_end(url)
 
     default_folder = "Downloads/"
@@ -261,21 +261,22 @@ class Download:
         mergedone = False
         def startmerge(folder, total):
             nonlocal now, mergedone
-            kill = False
-            if total == -1:
-                total = 10000000
-                kill = True
+            # kill = False
+            # if total == -1:
+            #     total = 10000000
+            #     kill = True
             while now < total:
                 while not os.path.exists(os.path.join(folder, "%07d.ts" % now)):
-                    if kill: return False
+                    # if kill: return False
                     if self.mainNotAlive(): return False
                     time.sleep(1)
-                if self.mainNotAlive() and not kill: return False
+                if self.mainNotAlive(): return False
+                # if self.mainNotAlive() and not kill: return False
                 try:
                     with open(os.path.join(folder, "%07d.ts" % now), "rb") as src:
                         res = src.read()
                 except:
-                    if kill: return False
+                    # if kill: return False
                     time.sleep(0.5)
                     continue
                 with open(os.path.join(folder, f"{self.filename}.mp4"), "ab+") as dst:
@@ -283,11 +284,12 @@ class Download:
                 now += 1
                 with open(os.path.join(folder, "downloading.inf"), "w") as f:
                     f.write(f"{now}")
-            if kill:
-                total = now
-                print("total:", total)
+            # if kill:
+            #     total = now
+            #     print("total:", total)
             now = 0
-            if self.mainNotAlive() and not kill: return False
+            if self.mainNotAlive(): return False
+            # if self.mainNotAlive() and not kill: return False
             while now < total:
                 if os.path.exists(os.path.join(folder, "%07d.ts" % now)):
                     os.remove(os.path.join(folder, "%07d.ts" % now))
@@ -319,11 +321,11 @@ class Download:
                     cryptor = AES.new(key, AES.MODE_CBC, key)
 
             elif line and "#" not in line:
-                if mergedone: exit()
+                if mergedone: return True
                 if self._download_count >= now and not os.path.exists(os.path.join(folder, "%07d.ts" % self._download_count)):
                     line = requests.compat.urljoin(url, line.replace("\n", ""))
-                    if mergedone: exit()
-                    self.download_start(url=line)
+                    if mergedone: return True
+                    self._download_start(url=line)
                     threading.Thread(target=self._download, args=(line, os.path.join(folder, "%07d.ts" % self._download_count), encrypted, cryptor)).start()
                 self._download_count = self._download_count + 1
                 print(f"{int((self._download_count - self._running_count) / total * 1000) / 10}%, {self._download_count - self._running_count}/{total}", end = '\r')
