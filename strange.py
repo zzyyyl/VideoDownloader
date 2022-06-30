@@ -17,7 +17,7 @@ class LockError(Exception):
 
 __netSemaphore = threading.BoundedSemaphore(100)
 # write_lock = threading.Lock()
-_downloadSemaphore = threading.BoundedSemaphore(100)
+_downloadSemaphore = threading.BoundedSemaphore(150)
 _downloadListLock = threading.Lock()
 _downloadList = []
 
