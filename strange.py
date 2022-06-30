@@ -287,13 +287,13 @@ class Download:
             # if kill:
             #     total = now
             #     print("total:", total)
-            now = 0
+            mergeing_now = 0
             if self.mainNotAlive(): return False
             # if self.mainNotAlive() and not kill: return False
-            while now < total:
-                if os.path.exists(os.path.join(folder, "%07d.ts" % now)):
-                    os.remove(os.path.join(folder, "%07d.ts" % now))
-                now += 1
+            while mergeing_now < total:
+                if os.path.exists(os.path.join(folder, "%07d.ts" % mergeing_now)):
+                    os.remove(os.path.join(folder, "%07d.ts" % mergeing_now))
+                mergeing_now += 1
             mergedone = True
 
         threading.Thread(target=startmerge, args=(folder, total)).start()
@@ -326,6 +326,7 @@ class Download:
                     line = requests.compat.urljoin(url, line.replace("\n", ""))
                     if mergedone: return True
                     self._download_start(url=line)
+                    print("_download_count:", self._download_count, "now:", now)
                     threading.Thread(target=self._download, args=(line, os.path.join(folder, "%07d.ts" % self._download_count), encrypted, cryptor)).start()
                 self._download_count = self._download_count + 1
                 print(f"{int((self._download_count - self._running_count) / total * 1000) / 10}%, {self._download_count - self._running_count}/{total}", end = '\r')
@@ -339,29 +340,32 @@ class Download:
         return True
 
 def MainDownload(url, filename):
-    download_thread = Download(url, filename)
+    download_main = Download(url, filename)
     download_accomplished = False
     def Main(url, filename):
-        nonlocal download_thread, download_accomplished
+        nonlocal download_main, download_accomplished
         try:
-            download_accomplished = download_thread.run()
+            download_accomplished = download_main.run()
         except Exception as e:
             print("main error", e)
             raise
 
     try:
-        threading.Thread(target=Main, args=(url, filename)).start()
+        download_thread = threading.Thread(target=Main, args=(url, filename))
+        download_thread.start()
         while not download_accomplished:
             time.sleep(1)
             pass
     except Exception as e:
         print(e)
         print("###Main error and dead.")
-        download_thread.setMainDead()
+        download_main.setMainDead()
+        download_thread.join()
         return False
     else:
         print("###Main accomplished and dead.")
-        download_thread.setMainDead()
+        download_main.setMainDead()
+        download_thread.join()
         return True
 
 if __name__ == "__main__":
