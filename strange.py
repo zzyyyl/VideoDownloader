@@ -242,8 +242,11 @@ class Download:
         #     ts_list = f.readlines()
 
         self._download_count = 0
-        if not os.path.exists(self.default_folder):
-            os.mkdir(self.default_folder)
+        try:
+            if not os.path.exists(self.default_folder):
+                os.mkdir(self.default_folder)
+        except Exception as e:
+            print("Warning:", e.__repr__())
 
         folder = os.path.join(self.default_folder, hashlib.new('sha256', url.encode()).hexdigest()[:16])
         if not os.path.exists(folder):
@@ -283,6 +286,7 @@ class Download:
                     # if kill: return False
                     time.sleep(0.5)
                     continue
+                if res[1:4] == b"PNG": res = res[4:] # for age!
                 with open(os.path.join(folder, f"{self.filename}.mp4"), "ab+") as dst:
                     dst.write(res)
                 now += 1
