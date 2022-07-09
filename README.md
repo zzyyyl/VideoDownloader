@@ -1,5 +1,7 @@
 # VideoDownloader
 
+**This script is for private use.**
+
 ## strange.py
 
 usage:
