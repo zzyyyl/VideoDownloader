@@ -11,14 +11,15 @@ def total_count(download_mains):
 def downloaded_count(download_mains):
     return sum([download_main.downloaded_count() for download_main in download_mains])
 
-def download_accomplishing():
-    download_accomplished += 1
-
 def MainDownload(download_mains):
     download_total = len(download_mains)
     download_accomplished = 0
-    def Main(download_main):
+
+    def download_accomplishing():
         nonlocal download_accomplished
+        download_accomplished += 1
+
+    def Main(download_main):
         try:
             ret = download_main.run()
             if ret == 0:
