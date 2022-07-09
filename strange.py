@@ -250,7 +250,7 @@ class Download:
             os.mkdir(folder)
 
         with open(os.path.join(folder, "url.txt"), 'w') as f:
-            f.write(url)
+            f.write(f"origin: {self.origin_url}\nurl: {url}")
 
         if not os.path.exists(os.path.join(folder, "downloading.inf")): now = 0
         else:
