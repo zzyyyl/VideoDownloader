@@ -18,5 +18,5 @@ Clear `./Downloads/summary` and copy all mp4 in `./Downloads/*` into `./Download
 
 ## age.py
 
-Please read the code.
+Download the videos whose url is in `./agedownload.txt` and name them in order. (for <www.agemys.cc>)
 

@@ -1,19 +1,82 @@
+import time
+import os
+from strange import Download, lock_running, headers
+import threading
 import requests
 
-headers = {
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.53 Safari/537.36 Edg/103.0.1264.37'
-}
+_downloadAccomplishedLock = threading.Lock()
 
-url = "https://zj.shankuwang.com:8443/?url=https://dy.jx1024.com:8443/uploads/%E5%99%AC%E8%A1%80%E7%8B%82%E8%A2%AD02.m3u8&vlt_l=0&vlt_r=0"
+def total_count(download_mains):
+    return sum([download_main.total for download_main in download_mains])
 
-res = requests.get(url=url, headers=headers)
+def downloaded_count(download_mains):
+    return sum([download_main.downloaded_count() for download_main in download_mains])
 
-new_url = res.text.split('video_url', 1)[1].split("\'", 2)[1]
+def MainDownload(download_mains):
+    download_total = len(download_mains)
+    download_accomplished = 0
 
-new_url = requests.compat.urljoin(url, new_url)
+    def download_accomplishing():
+        nonlocal download_accomplished
+        download_accomplished += 1
 
-print(new_url)
+    def Main(download_main):
+        try:
+            ret = download_main.run()
+            if ret == 0:
+                raise RuntimeError("Unexpected error")
+            lock_running(lock=_downloadAccomplishedLock, func=download_accomplishing)
+        except Exception as e:
+            print("main error", e)
+            raise
 
-from strange import MainDownload
+    try:
+        for download_main in download_mains:
+            download_thread = threading.Thread(target=Main, args=(download_main,))
+            download_thread.start()
+        while download_accomplished < download_total:
+            if total_count(download_mains) != 0:
+                print(f"{int(downloaded_count(download_mains) / total_count(download_mains) * 1000) / 10}%, {downloaded_count(download_mains)}/{total_count(download_mains)}", end = '\r')
+            time.sleep(0.1)
+            pass
+    except Exception as e:
+        print(e)
+        print("###Main error and dead.")
+        download_main.setMainDead()
+        download_thread.join()
+        return False
+    else:
+        print("###Main accomplished and dead.")
+        download_main.setMainDead()
+        download_thread.join()
+        return True
 
-MainDownload(url=new_url, filename="1")
+if __name__ == "__main__":
+    with open("agedownload.txt", 'r', encoding="utf8") as f:
+        r = f.read()
+    r = r.split('\n')
+
+    download_mains = []
+    count = 1
+    for x in r:
+        if not x:
+            continue
+
+        try:
+            # headers["origin"] = "https://www.agemys.cc/"
+            res = requests.get(url=x, headers=headers)
+            if "text/html" in res.headers.get("content-type").lower().replace("; ", ";").split(";"): # age type
+                new_url = res.text.split('video_url', 1)[1].split("\'", 2)[1]
+                new_url = requests.compat.urljoin(x, new_url)
+                print("Age:", new_url)
+                download_main = Download(new_url, f"{count}")
+            else:
+                download_main = Download(x, f"{count}")
+            download_mains.append(download_main)
+        except Exception as e:
+            print(f"{count} Error. ", e.__repr__())
+
+        count += 1
+        # os.system(f"start /MIN cmd /K python strange.py -u=\"{x}\" -o={count}")
+
+    MainDownload(download_mains)

@@ -3,5 +3,5 @@ __pycache__/
 Downloads/
 **.mp4
 **.ts
-**.txt
+*/**.txt
 **.inf
