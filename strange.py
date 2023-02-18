@@ -91,6 +91,14 @@ def add_to_16(value):
 
 
 def _get(url, headers, timeout, details, need_break_func=lambda: None):
+    proxies = {
+        # "http": "http://127.0.0.1:1080",
+        "https": "http://127.0.0.1:1080"
+    }
+    if "referer" not in headers:
+        headers["referer"] = "/".join(url.split('/', 3)[:3])
+    if "origin" not in headers:
+        headers["origin"] = "/".join(url.split('/', 3)[:3])
     random.seed(time.time())
     rt = 0
     while True:
@@ -99,6 +107,7 @@ def _get(url, headers, timeout, details, need_break_func=lambda: None):
             res = lock_running(lock=__netSemaphore,
                 need_break_func=need_break_func,
                 func=lambda: requests.get(url=url, headers=headers, timeout=timeout))
+                # func=lambda: requests.get(url=url, headers=headers, proxies=proxies, timeout=timeout))
         except (KeyboardInterrupt, EOFError):
             return False
         except Exception as e:
@@ -113,7 +122,12 @@ def _get(url, headers, timeout, details, need_break_func=lambda: None):
 
 
 headers = {
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.53 Safari/537.36 Edg/103.0.1264.37'
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.53 Safari/537.36 Edg/103.0.1264.37',
+    # 'accept': "*/*",
+    # 'accept-encoding': 'gzip, deflate',
+    # 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+    # 'sec-fetch-site': 'cross-site',
+    # 'sec-fetch-mode': 'cors'
 }
 
 class Download:
@@ -171,15 +185,13 @@ class Download:
         if not self._download_check_started(url): self._download_start(url)
         while True:
             if self.mainNotAlive(): return
-            r = _get(url=url, headers=headers, timeout=15, details=name, need_break_func=self.mainNotAlive)
+            r = _get(url=url, headers={}, timeout=15, details=name, need_break_func=self.mainNotAlive)
             if r.status_code == 200 and r.headers.get("content-type").lower() != "text/html":
                 break
             else:
                 print(f"Request error, status code={r.status_code},", 
                       f"content-type={r.headers.get('content-type')},",
                       f"retrying... ({name})")
-                # print("headers:", r.headers)
-                # print("content:", r.content)
                 time.sleep(2)
 
         if not r:
@@ -215,14 +227,22 @@ class Download:
         self.setMainAlive()
         cryptor = None
         url = self.origin_url
-        res = _get(url=url, headers=headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
+        m3u8_headers = headers.copy()
+        if "referer" in m3u8_headers:
+            m3u8_headers.pop("referer")
+        # m3u8_headers["referer"]=""
+        m3u8_headers["origin"]="https://www.agemys.net"
+        # print(m3u8_headers)
+        # m3u8_headers["referer"]="https://missav.com/mum-154"
+        # m3u8_headers["origin"]="https://missav.com"
+        res = _get(url=url, headers=m3u8_headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
         if "EXT-X-STREAM-INF" in res.text:  
             file_line = res.text.split("\n")
             for line in file_line:
                 if '.m3u8' in line:
                     url = requests.compat.urljoin(url, line)
                     # print("real url:", url)
-                    res = _get(url=url, headers=headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
+                    res = _get(url=url, headers=m3u8_headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
 
         ts_list = res.text.replace("\r\n", '\n').split('\n')
         # with open("index.m3u8", 'wb') as f:
@@ -231,13 +251,13 @@ class Download:
         # exit()
         if ts_list[0] != "#EXTM3U":
             print(ts_list)
-            raise DownloadError(f"{url} is not M3U8")
+            raise self.DownloadError(f"{url} is not M3U8")
 
         self.total = 0
         for line in ts_list:
             if line and "#" not in line:
                 self.total += 1
-        print("total:", self.total)
+        print("total:", self.total, "   ")
         # with open("index.m3u8","r") as f:
         #     ts_list = f.readlines()
 

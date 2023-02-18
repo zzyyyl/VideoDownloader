@@ -3,6 +3,7 @@ import os
 from strange import Download, lock_running, headers
 import threading
 import requests
+import traceback
 
 _downloadAccomplishedLock = threading.Lock()
 
@@ -36,19 +37,21 @@ def MainDownload(download_mains):
             download_thread.start()
         while download_accomplished < download_total:
             if total_count(download_mains) != 0:
-                print(f"{int(downloaded_count(download_mains) / total_count(download_mains) * 1000) / 10}%, {downloaded_count(download_mains)}/{total_count(download_mains)}", end = '\r')
+                print(f"{int(downloaded_count(download_mains) / total_count(download_mains) * 1000) / 10}%, {downloaded_count(download_mains)}/{total_count(download_mains)}   ", end = '\r')
             time.sleep(0.1)
             pass
     except Exception as e:
         print(e)
         print("###Main error and dead.")
-        download_main.setMainDead()
-        download_thread.join()
+        for download_main in download_mains:
+            download_main.setMainDead()
+        # download_thread.join()
         return False
     else:
         print("###Main accomplished and dead.")
-        download_main.setMainDead()
-        download_thread.join()
+        for download_main in download_mains:
+            download_main.setMainDead()
+        # download_thread.join()
         return True
 
 if __name__ == "__main__":
@@ -63,18 +66,22 @@ if __name__ == "__main__":
             continue
 
         try:
-            # headers["origin"] = "https://www.agemys.cc/"
+            # headers["origin"] = "https://www.agemys.net/"
+            headers["referer"] = "https://www.agemys.net/"
             res = requests.get(url=x, headers=headers)
-            if "text/html" in res.headers.get("content-type").lower().replace("; ", ";").split(";"): # age type
+            if "text/html" in res.headers.get("content-type").lower().replace("; ", ";").split(";"): # age style
+                print("Maybe age-style:", res.text)
                 new_url = res.text.split('video_url', 1)[1].split("\'", 2)[1]
                 new_url = requests.compat.urljoin(x, new_url)
-                print("Age:", new_url)
-                download_main = Download(new_url, f"{count}")
-            else:
-                download_main = Download(x, f"{count}")
-            download_mains.append(download_main)
+                print(f"{count} Age:", new_url)
+                x = new_url
         except Exception as e:
-            print(f"{count} Error. ", e.__repr__())
+            print(f"{count} Warning. ", e.__repr__())
+            traceback.print_exc()
+            print(f"{count} Fallback to download exactly.")
+
+        download_main = Download(x, f"{count}")
+        download_mains.append(download_main)
 
         count += 1
         # os.system(f"start /MIN cmd /K python strange.py -u=\"{x}\" -o={count}")
