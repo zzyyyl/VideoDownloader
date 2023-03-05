@@ -225,26 +225,38 @@ class Download:
 
     def run(self):
         self.setMainAlive()
-        cryptor = None
         url = self.origin_url
-        m3u8_headers = headers.copy()
-        if "referer" in m3u8_headers:
-            m3u8_headers.pop("referer")
-        # m3u8_headers["referer"]=""
-        m3u8_headers["origin"]="https://www.agemys.net"
-        # print(m3u8_headers)
-        # m3u8_headers["referer"]="https://missav.com/mum-154"
-        # m3u8_headers["origin"]="https://missav.com"
-        res = _get(url=url, headers=m3u8_headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
-        if "EXT-X-STREAM-INF" in res.text:  
-            file_line = res.text.split("\n")
-            for line in file_line:
-                if '.m3u8' in line:
-                    url = requests.compat.urljoin(url, line)
-                    # print("real url:", url)
-                    res = _get(url=url, headers=m3u8_headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
+        if url.startswith("http://") or url.startswith("https://"):
+            m3u8_headers = headers.copy()
+            if "referer" in m3u8_headers:
+                m3u8_headers.pop("referer")
+            # m3u8_headers["referer"]=""
+            m3u8_headers["origin"]="https://www.agemys.net"
+            # print(m3u8_headers)
+            # m3u8_headers["referer"]="https://missav.com/mum-154"
+            # m3u8_headers["origin"]="https://missav.com"
+            res = _get(url=url, headers=m3u8_headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
+            if "EXT-X-STREAM-INF" in res.text:  
+                file_line = res.text.split("\n")
+                for line in file_line:
+                    if '.m3u8' in line:
+                        url = requests.compat.urljoin(url, line)
+                        # print("real url:", url)
+                        res = _get(url=url, headers=m3u8_headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
+            self.read_from_m3u8(res.text.replace("\r\n", '\n'), url)
+        else:
+            print("Trying read from local file:", url)
+            try:
+                with open(url, "r") as f:
+                    m3u8_content = f.read()
+            except Exception as e:
+                print("Error:", e.__repr__())
+            else:
+                self.read_from_m3u8(m3u8_content, url)
 
-        ts_list = res.text.replace("\r\n", '\n').split('\n')
+    def read_from_m3u8(self, m3u8_content, url):
+        cryptor = None
+        ts_list = m3u8_content.replace("\r\n", '\n').split('\n')
         # with open("index.m3u8", 'wb') as f:
         #     f.write(res.content)
         # print(ts_list)
