@@ -243,7 +243,7 @@ class Download:
                         url = requests.compat.urljoin(url, line)
                         # print("real url:", url)
                         res = _get(url=url, headers=m3u8_headers, timeout=15, details="run", need_break_func=self.mainNotAlive)
-            self.read_from_m3u8(res.text.replace("\r\n", '\n'), url)
+            return self.read_from_m3u8(res.text.replace("\r\n", '\n'), url)
         else:
             print("Trying read from local file:", url)
             try:
@@ -252,7 +252,7 @@ class Download:
             except Exception as e:
                 print("Error:", e.__repr__())
             else:
-                self.read_from_m3u8(m3u8_content, url)
+                return self.read_from_m3u8(m3u8_content, url)
 
     def read_from_m3u8(self, m3u8_content, url):
         cryptor = None
